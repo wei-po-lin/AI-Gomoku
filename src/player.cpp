@@ -18,7 +18,7 @@ enum SPOT_STATE {
     WHITE = 2
 };
 
-map<int,int> depth_mul = {{3,3},{2,2},{3,1}};
+// map<int,int> depth_mul = {{3,3},{2,2},{3,1}};
 
 struct Point {
     int x, y;
@@ -99,7 +99,7 @@ int calculate_value(int block , int cont ,  bool self){
                 case 3:
                     return self ? 50000 : 32000;
                 case 4:
-                    return 100000000;
+                    return 80000000;
                 case 5:
                     return 100000000;
             }
@@ -113,13 +113,13 @@ int calculate_value(int block , int cont ,  bool self){
                 case 3:
                     return self ? 10 : 5;
                 case 4:
-                    return self ? 1000000 : 300000;
+                    return self ? 1000000 : 200;
                 case 5:
                     return 100000000;
             }
             break;
         case 2:
-            if(cont == 5)
+            if(cont >= 5)
                 return 100000000;
             else return 0;
             break;
@@ -392,6 +392,33 @@ bool empty(void){
     return true;
 }
 
+
+pair<int,int> before_alphabeta(void){
+    vector<Point> possible = find_position();
+    int opponent = player == 1 ? 2 : 1;
+
+    for(auto pos : possible){
+        board[pos.x][pos.y] = player;
+        if(state_value_func() >= 997000000){
+            cout<<"before_alphabeta~~~~~~~~~~~~~~~~~~~~~~~\n";
+            board[pos.x][pos.y] = 0;
+            return pair<int,int>(pos.x,pos.y);
+        }
+        board[pos.x][pos.y] = 0;
+    }
+    for(auto pos : possible){
+        board[pos.x][pos.y] = opponent;
+        if(state_value_func() <= -997000000){
+            cout<<"before_alphabeta~~~~~~~~~~~~~~~~~~~~~~~\n";
+            board[pos.x][pos.y] = 0;
+            return pair<int,int>(pos.x,pos.y);
+        }
+        board[pos.x][pos.y] = 0;
+    }
+    return pair<int,int>(-1,-1);
+}
+
+
 chess_move alpha_beta(int depth , int alpha , int beta , bool maximizingPlayer){
     if(depth == 0){
         return chess_move(-1,-1,state_value_func());
@@ -503,6 +530,12 @@ void write_valid_spot(std::ofstream& fout) {
             return;
         }        
         else{
+            pair<int,int> b = before_alphabeta();
+            if(b.first != -1 && b.second != -1){
+                fout << b.first << " " << b.second <<endl;
+                fout.flush();
+                return;               
+            }
             chess_move p = alpha_beta(3 , (-1)*INF , INF , true);
             fout << p.pos.x << " " << p.pos.y <<endl;
             fout.flush();

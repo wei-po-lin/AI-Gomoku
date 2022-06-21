@@ -18,6 +18,8 @@ enum SPOT_STATE {
     WHITE = 2
 };
 
+map<int,int> depth_mul = {{3,3},{2,2},{3,1}};
+
 struct Point {
     int x, y;
 	Point() : Point(0, 0) {}
@@ -35,6 +37,14 @@ struct Point {
 		return Point(x - rhs.x, y - rhs.y);
 	}
 };
+
+class chess_move{
+    public:
+        Point pos;
+        int value;
+        chess_move(int x, int y , int value) : pos(Point(x, y)),value(value) {}
+};
+
 
 int d_x[8] = {-1,-1,-1,0,0,1,1,1};
 int d_y[8] = {-1,0,1,-1,1,-1,0,1};
@@ -78,19 +88,6 @@ vector<Point> find_position(void){
     return position_can_place;
 }
 
-
-int pattern_convert(int p){
-    int new_pattern = 0;
-    for(int i = 0 ; i<=5 ; i++){
-        int n = p%10;
-        p = p/10;
-
-        n = (3-n)%3;
-        new_pattern += n*pow(10,i); 
-    }
-    return new_pattern;
-}
-
 int calculate_value(int block , int cont ,  bool self){
     switch(block){
         case 0:
@@ -100,9 +97,9 @@ int calculate_value(int block , int cont ,  bool self){
                 case 2:
                     return self ? 7 : 5;
                 case 3:
-                    return self ? 50000 : 20000;
+                    return self ? 50000 : 32000;
                 case 4:
-                    return self ? 1000000 : 500000;
+                    return 100000000;
                 case 5:
                     return 100000000;
             }
@@ -116,7 +113,7 @@ int calculate_value(int block , int cont ,  bool self){
                 case 3:
                     return self ? 10 : 5;
                 case 4:
-                    return self ? 1000000 : 100000;
+                    return self ? 1000000 : 300000;
                 case 5:
                     return 100000000;
             }
@@ -229,7 +226,7 @@ int state_value_func(){
                 if(cur_color == player) value += tmp_value;
                 else value -= tmp_value;
 
-                block = 1;
+                block = 2;
                 cont = 1;
                 cur_color = board[i][j];
             }
@@ -238,7 +235,7 @@ int state_value_func(){
                 if(cur_color == player) value += tmp_value;
                 else value -= tmp_value;
 
-                block = 2;
+                block = 1;
                 cont = 0;
                 cur_color = 0;
             }               
@@ -335,7 +332,6 @@ int state_value_func(){
         cur_color = 0;
     }
     
-
     for(int minus = -1 ; minus>=-10 ; minus--){ //從左上到右下 右上半部 i遞增 從上往下
         for(int j = -minus ; j<15 ; j++){
             int i = minus+j;
@@ -396,10 +392,10 @@ bool empty(void){
     return true;
 }
 
-int alpha_beta(int depth , double alpha , double beta , bool maximizingPlayer , std::ofstream& fout){
-
+chess_move alpha_beta(int depth , int alpha , int beta , bool maximizingPlayer){
     if(depth == 0){
-        return state_value_func();
+        return chess_move(-1,-1,state_value_func());
+        // return state_value_func();
         // return rand()%100;
     }
     cout<<"&&&&&&\n";
@@ -425,57 +421,66 @@ int alpha_beta(int depth , double alpha , double beta , bool maximizingPlayer , 
     cout<<"&&&&&&\n";
 
     if(maximizingPlayer == true){
-        int value = (-1)*INF;
+        chess_move best_move(-1,-1,-INF);
+        chess_move new_alpha_beta(-1,-1,-INF);
+
         vector<Point> possibility = find_position();
         cout<<"-----------------player:"<<depth<<endl;
         for(auto pos : possibility){
             board[pos.x][pos.y] = player;
-            int new_alpha_beta = alpha_beta(depth-1 , alpha , beta , false , fout);
+            // int new_alpha_beta = alpha_beta(depth-1 , alpha , beta , false , fout);
+            new_alpha_beta = alpha_beta(depth-1 , alpha , beta , false);
             board[pos.x][pos.y] = 0;
-            cout<<new_alpha_beta<<" "<<endl;
-
-            if( new_alpha_beta > value){
-                value = new_alpha_beta;
-                x = pos.x;
-                y = pos.y;
-            }
-            // alpha = max(alpha , value);
-            alpha = alpha>value ? alpha : value;
+            cout<<new_alpha_beta.value<<" "<<endl;
             
-            if(alpha >= beta)
-                break;
+            alpha = max(alpha , new_alpha_beta.value);
+            if(alpha >= beta) return new_alpha_beta;
+            if( new_alpha_beta.value > best_move.value){
+                best_move = new_alpha_beta;
+                best_move.value = new_alpha_beta.value;
+                best_move.pos.x = pos.x;
+                best_move.pos.y = pos.y;
+            }
+            
+            // alpha = alpha>value ? alpha : value;
+            // if(alpha >= beta)
+            //     break;
         }
-        cout<<"\n player: "<<depth <<" choose : "<<value<<endl;
+        cout<<"\n player: "<<depth <<" choose : "<<best_move.value<<endl;
         // cout<<x<<" "<<y<<endl;
-        fout << x << " " << y << std::endl;
-        fout.flush();
-        return value;
+        // fout << x << " " << y << std::endl;
+        // fout.flush();
+        return best_move;
     }
     else{
-        int value = INF;
+        chess_move best_move(-1,-1, INF);
+        chess_move new_alpha_beta(-1,-1, INF);
+
         vector<Point> possibility = find_position(); 
         cout<<"---------------opponent:"<<depth<<endl;
         for(auto pos : possibility){
             board[pos.x][pos.y] = (1 == player ? 2 : 1);
-            int new_alpha_beta = alpha_beta(depth-1 , alpha , beta , true , fout);
+            // int new_alpha_beta = alpha_beta(depth-1 , alpha , beta , true , fout);
+            new_alpha_beta = alpha_beta(depth-1 , alpha , beta , true);
             board[pos.x][pos.y] = 0;
-            cout<<new_alpha_beta<<" ";
+            cout<<new_alpha_beta.value<<" ";
 
-            if(new_alpha_beta < value){
-                value = new_alpha_beta;
-                x = pos.x;
-                y = pos.y;
+            beta = min(beta , new_alpha_beta.value);
+            if(beta <= alpha) return new_alpha_beta;
+            if(new_alpha_beta.value < best_move.value){
+                best_move = new_alpha_beta;
+                best_move.value = new_alpha_beta.value;
+                best_move.pos.x = pos.x;
+                best_move.pos.y = pos.y;
             }
-            // beta = min(beta , value);
-            beta = beta<value ? beta : value;
-            if(beta <= alpha)
-                break;
+            // if(beta <= alpha)
+            //     break;
         }
-        cout<<"\n opponent: "<<depth<<" choose : "<<value<<endl;
+        cout<<"\n opponent: "<<depth<<" choose : "<<best_move.value<<endl;
         // cout<<x<<" "<<y<<endl;
-        fout << x << " " << y << std::endl;
-        fout.flush();
-        return value;
+        // fout << x << " " << y << std::endl;
+        // fout.flush();
+        return best_move;
     }
 }
 
@@ -493,15 +498,21 @@ void write_valid_spot(std::ofstream& fout) {
         //     fout.flush();
         // }
         if(empty()){
-            x = SIZE/2;
-            y = SIZE/2;
+            fout<<SIZE/2<<" "<<SIZE/2<<endl;
+            fout.flush();
+            return;
         }        
-        else alpha_beta(3 , (-1)*INFINITY , INFINITY , true , fout);
+        else{
+            chess_move p = alpha_beta(3 , (-1)*INF , INF , true);
+            fout << p.pos.x << " " << p.pos.y <<endl;
+            fout.flush();
+            return;
+        }
         // cout<<"choose: "<<x<<" "<<y<<endl;
         
-        fout << x << " " << y << std::endl;
-        fout.flush();
-        return;
+        // fout << x << " " << y << std::endl;
+        // fout.flush();
+        // return;
     // }
 }
 
